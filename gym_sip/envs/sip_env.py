@@ -2,6 +2,7 @@ import gym
 import random
 import helpers as h
 import numpy as np
+import matplotlib.pyplot as plt 
 
 # Macros for actions
 ACTION_BUY_A = 0
@@ -10,6 +11,7 @@ ACTION_SKIP = 2
 
 # Starting bank
 AUM = 10000
+i = 0
 
 
 class SippyState:
@@ -23,6 +25,7 @@ class SippyState:
         self.index = 0
         self.cur_state = self.game.iloc[self.index]
         self.teams = h.teams_given_state(self.cur_state)
+    
         self.team_won = False
         print("imported {}".format(self.id))
 
@@ -65,10 +68,12 @@ class SipEnv(gym.Env):
 
     def __init__(self, fn):
         self.games = h.get_games(fn)
+        self.i = 0
         self.game = None
         self.game_id = 0
         self.init_a_bet = Bet(100, 0, (0, 0), None)
         self.init_h_bet = Bet(100, 1, (0, 0), None)
+        self.yurps = 0
         self.new_game()
         self.money = AUM
         self.last_bet = None  # 
@@ -76,6 +81,13 @@ class SipEnv(gym.Env):
         self.action = None
         self.hedges = []
         self.game_hedges = 0
+        self.blown_bets = 0
+        self.max_a = 0
+        self.max_h = 0
+        self.total_h = 0
+        self.good_h = 0
+        self.home_maxes = []
+        self.home_odds = []
         self.follow_bets = 0
         self._odds()
         self.action_space = gym.spaces.Discrete(3)
@@ -83,17 +95,44 @@ class SipEnv(gym.Env):
                                                 # ,dtype=np.float32)
 
     def step(self, action):  # action given to us from test.py
+        print(type(self.games))
         self.action = action   
         reward = 0 
+
         self.cur_state, done = self.game.next()  # goes to the next timestep in current game
         self._odds()
         self.set_init_odds()
+        self.max_a = self.max_profits_a()
+        self.max_h = self.max_profits_h()
+
+        print(str(self.max_h) + " max profit home")
+        print(str(self.max_a)+ "max profit away")
+        
 
         if done is True: 
+            self.i += 1
+            print(str(self.i) + " tis many points")
+            
+            self.home_maxes.append(self.max_h)
+            self.home_odds.append(self.init_h_bet.h_odds)
+            if self.i > 20:
+                np_homemax = np.array(self.home_maxes)
+                np_homeodds = np.array(self.home_odds)
+                plt.scatter(np_homeodds, np_homemax, c='blue', s=10, alpha=0.3)
+                plt.show()
+                #print("appended")
             if self.game.team_won is False or self.last_bet is None:
+                print(str(self.max_h) + "final max home")
+                print(str(self.max_a) + "final max away")
+                print('get money')
                 return self.cur_state, 0, True, self.odds
             else:
-                reward = self.forgot_to_hedge()
+                reward = self.forgot_to_hedge() - 1000000
+                print(str(self.max_h) + " yeee boi")
+                print(str(self.max_a) + "yee boi")
+                print(str(self.h_classifier()) + "ethansucks")
+                self.max_h = 0
+                self.max_a = 0 
                 return self.cur_state, reward, done, self.odds
 
         if self.last_bet is not None:
@@ -111,20 +150,74 @@ class SipEnv(gym.Env):
 
     def act(self):
         if self.action == ACTION_SKIP:
-            return 0 
+           
+            if self.init_h_bet.h_odds > 100 and self.last_bet is None and self.game_hedges == 0:
+                self.action = 1
+                self._bet()
+                print("homedogs")
+                return 0
+
+            elif self.last_bet is not None:
+
+                if h.net_given_odds(self.last_bet, self.odds) > 40:
+                    net = self._hedge()
+                    self.money += net
+                    print("come on")
+                    print(self.money)
+                    return net + 50
+            else:
+                return 0
+
         elif self.odds[self.action] == 0:
             # can't bet on team that has zero odds
             return None
-        elif self.last_bet is None:  # if last bet != None, then this bet is a hedge
-            self._bet()  
+        elif self.last_bet is None:
+             # if last bet != None, then this bet is a hedge
+            #self._bet()  
+            print(self.action)
+            print("we betting yall")
             return 0  # reward for getting equity?
-        elif self.last_bet.team == self.action:  # betting on same team twice
-            return 0
-        else:
-            net = self._hedge()
-            self.money += net
-            print(self.money)
-            return net
+        if self.last_bet is not None:
+            #print(self.last_bet)
+
+            if self.last_bet.team == self.action:  # betting on same team twice
+                return 0
+
+            elif 99 > h.net_given_odds(self.last_bet, self.odds) > 30:
+                net = self._hedge()
+                self.money += net
+                print("come on")
+                print(self.money)
+                return net + 50
+
+            elif 99 > h.net_given_odds(self.last_bet, self.odds) > 10 and self.last_bet.wait_amt > 100:
+                net = self._hedge()
+                self.money += net
+                print("ight")
+                print(self.money)
+                return net
+
+            elif h.net_given_odds(self.last_bet, self.odds) > 100:
+                net = self._hedge()
+                self.money += net
+                print("something up here")
+                print(self.money)
+                return net
+            
+
+            elif h.net_given_odds(self.last_bet, self.odds) < 0 and self.last_bet.wait_amt > 250:
+                net = self._hedge()
+                self.money += net
+                print("man we whilin")
+                print(self.money)
+                return net
+
+            
+            else:
+                
+                return 0
+
+
 
     def _bet(self):
         # we don't update self.money because we don't want it to get a negative reward on _bet()
@@ -144,11 +237,36 @@ class SipEnv(gym.Env):
         self.last_bet = None
 
         self.game_hedges += 1
+        print('total games touched' + str(self.game_hedges))
         return hedge.net
+
+
+    def max_profits_a(self):
+        profit = h.net_given_odds(self.init_a_bet, self.odds)
+        if profit > self.max_a:
+            self.max_a = profit
+        return self.max_a
+
+    def max_profits_h(self):
+        profit = h.net_given_odds(self.init_h_bet, self.odds)
+        if profit > self.max_h:
+            self.max_h = profit
+        return self.max_h        
+
+    def h_classifier(self):
+        if 400 > self.init_h_bet.h_odds > 100:
+            self.total_h += 1
+            if self.max_profits_h() > 10:
+                self.good_h +=1
+                return self.total_h, self.good_h
 
     def new_game(self):
         self.game_hedges = 0
         self.follow_bets = 0
+        self.max_h = -100
+        self.max_a = -100
+        self.yurps += 1
+        print(str(self.yurps) + " this many")
 
         self.init_h_bet.reset_odds()
         self.init_a_bet.reset_odds()
@@ -157,6 +275,7 @@ class SipEnv(gym.Env):
 
         self.game_id = random.choice(list(self.games.keys()))
         self.game = SippyState(self.games[self.game_id])
+        self.max = 0
         
         # self.get_teams_from_state()
 
@@ -182,8 +301,11 @@ class SipEnv(gym.Env):
     def forgot_to_hedge(self):
         print('forgot to hedge')
         reward = -self.last_bet.amt
+        self.money -= self.last_bet.amt
         self.last_bet.__repr__()
         print(self.last_bet.wait_amt)
+        self.blown_bets += 1
+        print(str(self.blown_bets) + " we fooled")
         return reward
 
     def _odds(self):
