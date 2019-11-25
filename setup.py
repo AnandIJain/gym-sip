@@ -1,7 +1,6 @@
 from setuptools import setup
 
-setup(name='gym_sip',
-      version='0.1.0',
-      install_requires=['gym', 'pandas', 'scikit-learn', 'matplotlib', 
-                        'torch', 'numpy'])  # And any other dependencies foo needs
+setup(name='gym_sips',
+      version='0.20',
+      install_requires=['gym', 'pandas', 'numpy'])  # And any other dependencies foo needs
 

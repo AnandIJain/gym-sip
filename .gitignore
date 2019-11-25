@@ -1,5 +1,5 @@
 # Specify filepatterns you want git to ignore.
-neural_networks_tutorial.py
-deepq,py
-.idea
 data/
+__pycache__/
+*.csv
+*.swp
