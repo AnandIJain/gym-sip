@@ -55,17 +55,21 @@ class SippyState:
         return csv_end or self.team_won
 
     def ids(self):
-        ids = self.game['game_id'].unique()
+        ids = self.game["game_id"].unique()
         if len(ids) > 1:  # check to see if the games were not chunked correctly
-            raise Exception('there was an error, chunked game has more than one id, the ids are {}'.format(ids))
+            raise Exception(
+                "there was an error, chunked game has more than one id, the ids are {}".format(
+                    ids
+                )
+            )
         return ids
 
 
 class SipEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
+    metadata = {"render.modes": ["human"]}
 
     def __init__(self, fn):
-        self.games = h.get_games(fn, output='dict')
+        self.games = h.get_games(fn, output="dict")
         self.game = None
         self.game_id = 0
 
@@ -82,13 +86,18 @@ class SipEnv(gym.Env):
         self.follow_bets = 0
         self._odds()
         self.action_space = spaces.Discrete(3)
-        self.observation_space = spaces.Box(low=-1e7, high=1e7, shape=(len(self.cur_state), 0), dtype=np.float32)
-                                                # ,dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=-1e7, high=1e7, shape=(len(self.cur_state), 0), dtype=np.float32
+        )
+        # ,dtype=np.float32)
 
     def step(self, action):  # action given to us from test.py
         self.action = action
         reward = 0
-        self.cur_state, done = self.game.next()  # goes to the next timestep in current game
+        (
+            self.cur_state,
+            done,
+        ) = self.game.next()  # goes to the next timestep in current game
         self._odds()
         self.set_init_odds()
 
@@ -165,7 +174,7 @@ class SipEnv(gym.Env):
 
         if self.game is None:
             del self.games[self.game_id]
-            print('deleted a game')
+            print("deleted a game")
             self.new_game()
 
         print(self.game.cur_state)
@@ -173,17 +182,17 @@ class SipEnv(gym.Env):
     def set_init_odds(self):
         if self.init_a_bet.a_odds == 0:  # check if the init a odds have been set yet
             if self.odds[0] != 0:
-                print('updated init a odds: {}'.format(self.odds[0]))
+                print("updated init a odds: {}".format(self.odds[0]))
                 self.init_a_bet.a_odds = self.odds[0]
                 self.init_h_bet.a_odds = self.odds[0]
         if self.init_a_bet.h_odds == 0:
             if self.odds[1] != 0:
-                print('updated init h odds: {}'.format(self.odds[1]))
+                print("updated init h odds: {}".format(self.odds[1]))
                 self.init_h_bet.h_odds = self.odds[1]
                 self.init_a_bet.h_odds = self.odds[1]
 
     def forgot_to_hedge(self):
-        print('forgot to hedge')
+        print("forgot to hedge")
         reward = -self.last_bet.amt
         self.last_bet.__repr__()
         print(self.last_bet.wait_amt)
@@ -205,7 +214,7 @@ class SipEnv(gym.Env):
         return self.next()
 
     def __repr__(self):
-        print('index in game: ' + str(self.cur_state.index))
+        print("index in game: " + str(self.cur_state.index))
 
-    def _render(self, mode='human', close=False):
+    def _render(self, mode="human", close=False):
         pass
