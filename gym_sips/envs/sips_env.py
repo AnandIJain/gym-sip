@@ -28,6 +28,21 @@ BUY_H = 1
 SKIP = 2
 
 
+ENV_COLS = [
+    "last_mod",
+    "num_markets",
+    "live",
+    "quarter",
+    "secs",
+    "a_pts",
+    "h_pts",
+    "status",
+    "a_ml",
+    "h_ml",
+    "a_tot",
+]
+
+
 class SipsEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
@@ -39,7 +54,7 @@ class SipsEnv(gym.Env):
             dfs = h.apply_min_then_filter(dfs, verbose=True)
 
         self.dfs = s.serialize_dfs(
-            dfs, in_cols=bm.TO_SERIALIZE, to_numpy=False, astype=np.float32
+            dfs, in_cols=ENV_COLS, to_numpy=False, astype=np.float32
         )
         self.last_game_idx = len(self.dfs) - 1
         self.action_space = spaces.Discrete(3)  # buy_a, buy_h, hold
@@ -54,7 +69,7 @@ class SipsEnv(gym.Env):
 
         obs = self.data.iloc[self.row_idx]
         reward, done = self.act(obs, action)
-        info = [self.a_bets, obs.a_ml, self.h_bets, obs.h_ml]
+        info = [obs.a_ml, obs.h_ml]
         return obs, reward, done, info
 
     def act(self, obs, act):
@@ -77,12 +92,14 @@ class SipsEnv(gym.Env):
 
         if obs.a_pts == obs.h_pts:
             print(f"{obs.game_id}: {obs.a_team} tied with {obs.h_team}")
-            return 0
+            profit = 0
         elif obs.a_pts < obs.h_pts:
-            return sum(list(map(calc.eq, self.a_bets)))
+            profit = sum(list(map(calc.eq, self.a_bets)))
         else:
-            return sum(list(map(calc.eq, self.h_bets)))
-        return 0
+            profit = sum(list(map(calc.eq, self.h_bets)))
+
+        print(f'profit: {profit}')
+        return profit
 
     def reset(self):
         self.a_bets = []
