@@ -166,7 +166,7 @@ def drop_null_times(df, columns=["lms_date", "lms_time"]):
     return df
 
 
-def apply_min_game_len(games, min_lines=500):
+def apply_min_len(games, min_lines=500):
     # given dict of game dataframes and an integer > 0 for the minimum length of a game in csv lines
     print("applying minimum game len of : {}".format(min_lines))
     print("before apply: {}".format(len(games)))
