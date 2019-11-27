@@ -38,20 +38,20 @@ class SipsEnv(gym.Env):
             dfs = h.get_dfs()
             dfs = h.apply_min_then_filter(dfs, verbose=True)
 
-        self.dfs = s.serialize_dfs(dfs, in_cols=bm.TO_SERIALIZE, to_numpy=False, astype=np.float32)
+        self.dfs = s.serialize_dfs(
+            dfs, in_cols=bm.TO_SERIALIZE, to_numpy=False, astype=np.float32
+        )
         self.last_game_idx = len(self.dfs) - 1
         self.action_space = spaces.Discrete(3)  # buy_a, buy_h, hold
         self.reset()
         self.observation_space = get_obs_size(self.data)
-
-
 
     def step(self, action):
         self.row_idx += 1
 
         if self.row_idx == self.last_row_idx:
             return None, 0, True, None
-            
+
         obs = self.data.iloc[self.row_idx]
         reward, done = self.act(obs, action)
         info = [self.a_bets, obs.a_ml, self.h_bets, obs.h_ml]
@@ -76,14 +76,13 @@ class SipsEnv(gym.Env):
     def tally_reward(self, obs):
 
         if obs.a_pts == obs.h_pts:
-            print(f'{obs.game_id}: {obs.a_team} tied with {obs.h_team}')
+            print(f"{obs.game_id}: {obs.a_team} tied with {obs.h_team}")
             return 0
         elif obs.a_pts < obs.h_pts:
             return sum(list(map(calc.eq, self.a_bets)))
         else:
             return sum(list(map(calc.eq, self.h_bets)))
         return 0
-
 
     def reset(self):
         self.a_bets = []

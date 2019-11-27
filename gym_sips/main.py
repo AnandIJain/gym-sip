@@ -18,10 +18,11 @@ class RandomAgent(object):
         return self.action_space.sample()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('env_id', nargs='?', default="Sips-v0",
-                        help='Select the environment to run')
+    parser.add_argument(
+        "env_id", nargs="?", default="Sips-v0", help="Select the environment to run"
+    )
     args = parser.parse_args()
 
     # You can set the level to logger.DEBUG or logger.WARN if you
@@ -49,7 +50,7 @@ if __name__ == '__main__':
         while True:
             action = agent.act(ob, reward, done)
             ob, reward, done, info = env.step(action)
-            print(f'r: {reward}, info: {info}')
+            print(f"r: {reward}, info: {info}")
             if done:
                 break
             # Note there's no env.render() here. But the environment still can open window and
