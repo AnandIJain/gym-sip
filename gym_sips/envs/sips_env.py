@@ -29,6 +29,10 @@ SKIP = 2
 
 
 ENV_COLS = [
+    "sport",
+    "game_id",
+    "a_team",
+    "h_team",
     "last_mod",
     "num_markets",
     "live",
