@@ -55,12 +55,12 @@ class SipsEnv(gym.Env):
 
         if dfs is None:
             dfs = h.get_dfs()
-            dfs = h.apply_min_then_filter(dfs, verbose=True)
+        dfs = h.apply_min_then_filter(dfs, verbose=True)
 
         self.dfs = s.serialize_dfs(
             dfs, in_cols=ENV_COLS, to_numpy=False, astype=np.float32
         )
-        self.last_game_idx = len(self.dfs) - 1
+        self.last_game_idx = len(self.dfs) - 2
         self.action_space = spaces.Discrete(3)  # buy_a, buy_h, hold
         self.reset()
         self.observation_space = get_obs_size(self.data)
@@ -68,10 +68,11 @@ class SipsEnv(gym.Env):
     def step(self, action):
         self.row_idx += 1
 
-        if self.row_idx == self.last_row_idx:
+        if self.row_idx > self.last_row_idx:
             return None, 0, True, None
 
         obs = self.data.iloc[self.row_idx]
+
         reward, done = self.act(obs, action)
         info = [obs.a_ml, obs.h_ml]
         return obs, reward, done, info
@@ -82,7 +83,7 @@ class SipsEnv(gym.Env):
         act (int)
         """
         reward = 0.0
-        if obs.GAME_END:
+        if obs.GAME_END or self.row_idx == self.last_row_idx:
             return self.tally_reward(obs), True
         if act == BUY_A:
             reward -= 1
@@ -94,16 +95,20 @@ class SipsEnv(gym.Env):
 
     def tally_reward(self, obs):
 
+        num_bets = len(self.a_bets) + len(self.h_bets)
         if obs.a_pts == obs.h_pts:
-            print(f"{obs.game_id}: {obs.a_team} tied with {obs.h_team}")
-            profit = 0
+            print(f"{obs.game_id} tied") # {obs.a_team} tied with {obs.h_team}")
+            reward = num_bets
+            net = -1 * num_bets
         elif obs.a_pts < obs.h_pts:
-            profit = sum(list(map(calc.eq, self.a_bets)))
+            reward = sum(list(map(calc.eq, self.a_bets)))
+            net = reward - num_bets
         else:
-            profit = sum(list(map(calc.eq, self.h_bets)))
+            reward = sum(list(map(calc.eq, self.h_bets)))
+            net = reward - num_bets
 
-        print(f'profit: {profit}')
-        return profit
+        print(f'net: {net}')
+        return reward
 
     def reset(self):
         self.a_bets = []
@@ -112,7 +117,8 @@ class SipsEnv(gym.Env):
         if self.game_idx == self.last_game_idx:
             self.close()
         self.data = self.dfs[self.game_idx]
-        self.last_row_idx = len(self.data)
+        print(f'game_data shape: {self.data.shape}')
+        self.last_row_idx = self.data.shape[0] - 1
         self.row_idx = -1
 
     def render(self, mode="human"):

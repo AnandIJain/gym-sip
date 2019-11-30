@@ -6,7 +6,7 @@ import gym
 import tensorflow as tf
 import tf_agents as tfas 
 
-from tf_agents.environments.tf_wrappers import TFPyEnvironment
+from tf_agents.environments.tf_wrappers import TFEnvironmentBaseWrapper
 from tf_agents.networks import actor_distribution_network
 from tf_agents.environments import suite_gym
 from tf_agents.agents.reinforce import reinforce_agent
@@ -19,7 +19,8 @@ MAX_STEPS = 1000
 PRINT_FREQ = MAX_STEPS / 20
 
 if __name__ == "__main__":
-    env = TFPyEnvironment(suite_gym.load("Sips-v0", max_episode_steps=MAX_STEPS))
+    env = TFEnvironmentBaseWrapper(suite_gym.load(
+        "Sips-v0", max_episode_steps=MAX_STEPS))
     obs_spec = env.observation_spec()
     act_spec = env.action_spec()
     actor_net = actor_distribution_network.ActorDistributionNetwork(
