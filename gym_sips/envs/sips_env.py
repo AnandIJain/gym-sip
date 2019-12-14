@@ -55,7 +55,7 @@ class SipsEnv(gym.Env):
 
         if dfs is None:
             dfs = h.get_dfs()
-        dfs = h.apply_min_then_filter(dfs, verbose=True)
+        # dfs = h.apply_min_then_filter(dfs, verbose=True)
 
         self.dfs = s.serialize_dfs(
             dfs, in_cols=ENV_COLS, to_numpy=False, astype=np.float32
@@ -97,7 +97,7 @@ class SipsEnv(gym.Env):
 
         num_bets = len(self.a_bets) + len(self.h_bets)
         if obs.a_pts == obs.h_pts:
-            print(f"{obs.game_id} tied") # {obs.a_team} tied with {obs.h_team}")
+            print(f"{obs.game_id} tied")  # {obs.a_team} tied with {obs.h_team}")
             reward = num_bets
             net = -1 * num_bets
         elif obs.a_pts < obs.h_pts:
@@ -107,7 +107,7 @@ class SipsEnv(gym.Env):
             reward = sum(list(map(calc.eq, self.h_bets)))
             net = reward - num_bets
 
-        print(f'net: {net}')
+        print(f"net: {net}")
         return reward
 
     def reset(self):
@@ -117,7 +117,7 @@ class SipsEnv(gym.Env):
         if self.game_idx == self.last_game_idx:
             self.close()
         self.data = self.dfs[self.game_idx]
-        print(f'game_data shape: {self.data.shape}')
+        print(f"game_data shape: {self.data.shape}")
         self.last_row_idx = self.data.shape[0] - 1
         self.row_idx = -1
 
@@ -130,8 +130,8 @@ class SipsEnv(gym.Env):
 
 
 def get_obs_size(df):
-    state_size = (1, df.shape[0])
-    return spaces.Box(-np.inf, np.inf, state_size)
+    # state_size = (1, df.shape[0])
+    return spaces.Box(-np.inf, np.inf, [df.shape[0]])
 
 
 if __name__ == "__main__":

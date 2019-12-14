@@ -42,7 +42,7 @@ if __name__ == "__main__":
             action = agent.act(ob, reward, done)
             ob, reward, done, info = env.step(action)
             ep_r += reward
-            
+
             print(f"{j}: r: {reward}, info: {info}")
             j += 1
             if done:
@@ -51,11 +51,11 @@ if __name__ == "__main__":
             # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
             # Video is not recorded every episode, see capped_cubic_video_schedule for details.
 
-        print(f'ep_r: {ep_r}')
-        print(f'info: {i}')
+        print(f"ep_r: {ep_r}")
+        print(f"info: {i}")
         r_sum += ep_r
     # Close the env and write monitor result info to disk
-    print(f'r_sum: {r_sum}')
+    print(f"r_sum: {r_sum}")
     env.close()
 
 
