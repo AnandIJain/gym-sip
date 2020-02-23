@@ -59,21 +59,25 @@ def get_data_quick(df):
         games.append(g)
     return games
     
-
-
+def get_data():
+    dfs = h.get_dfs()
+    dfs = h.apply_min_then_filter(dfs, verbose=True)
+    df = pd.concat(dfs)
+    return df
 
 class SipsEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
+    # todo fix last_n and windowing
 
-    def __init__(self):
+    def __init__(self, last_n = 1):
+        self.last_n = last_n
         self.game_idx = -1  # gets incr to 0 on init
-        # dfs = h.apply_min_then_filter(dfs, verbose=True)
-
-        self.dfs = get_data_quick(pd.concat(h.get_dfs()))
+        df = get_data()
+        self.dfs = get_data_quick(df)
         self.last_game_idx = len(self.dfs) - 1
         self.action_space = spaces.Discrete(3)  # buy_a, buy_h, hold
         self.reset()
-        self.observation_space = get_obs_size(self.data)
+        self.observation_space = get_obs_size(self.data, last_n=last_n)
 
     def step(self, action):
         self.row_idx += 1
@@ -126,7 +130,7 @@ class SipsEnv(gym.Env):
         self.game_idx += 1
         if self.game_idx == self.last_game_idx:
             self.close()
-            
+
         try:
             self.data = self.dfs[self.game_idx]
         except IndexError:
@@ -144,12 +148,14 @@ class SipsEnv(gym.Env):
 
     def close(self):
         print("ran thru all games")
+        self.game_idx = -1
+        self.reset()
         return
 
 
-def get_obs_size(df):
+def get_obs_size(df, last_n=1):
     # state_size = (1, df.shape[0])
-    return spaces.Box(-np.inf, np.inf, [df.shape[1]])
+    return spaces.Box(-np.inf, np.inf, [df.shape[1] * last_n])
 
 
 if __name__ == "__main__":
