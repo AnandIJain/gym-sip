@@ -26,7 +26,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     logger.set_level(logger.INFO)
-    env = gym.make(args.env_id, dfs=h.get_full_games())
+    env = gym.make(args.env_id)
     env.seed(0)
     agent = RandomAgent(env.action_space)
     episode_count = 1

@@ -1,5 +1,11 @@
 # Specify filepatterns you want git to ignore.
 data/
 __pycache__/
+.vscode/
+
+*.pt
+*.json
+*.pkl
+*.txt
 *.csv
 *.swp

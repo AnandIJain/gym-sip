@@ -31,8 +31,8 @@ SKIP = 2
 ENV_COLS = [
     "sport",
     "game_id",
-    "a_team",
-    "h_team",
+    # "a_team",
+    # "h_team",
     "last_mod",
     "num_markets",
     "live",
@@ -40,27 +40,37 @@ ENV_COLS = [
     "secs",
     "a_pts",
     "h_pts",
-    "status",
     "a_ml",
     "h_ml",
     "a_tot",
 ]
 
+def get_data_quick(df):
+    s = df[ENV_COLS]
+    x = s.replace({'None': np.nan, 'EVEN': 100})
+    x = x.dropna()
+    bb = x[x.sport == 'BASK'].copy()
+    gs = h.chunk(bb)
+    games =[]
+    for g in gs:
+        g.last_mod = g.last_mod - g.last_mod.iloc[0]
+        g.drop(['game_id', 'sport'], axis=1, inplace=True)
+        g = g.astype(np.float32)
+        games.append(g)
+    return games
+    
+
+
 
 class SipsEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self, dfs=None):
+    def __init__(self):
         self.game_idx = -1  # gets incr to 0 on init
-
-        if dfs is None:
-            dfs = h.get_dfs()
         # dfs = h.apply_min_then_filter(dfs, verbose=True)
 
-        self.dfs = s.serialize_dfs(
-            dfs, in_cols=ENV_COLS, to_numpy=False, astype=np.float32
-        )
-        self.last_game_idx = len(self.dfs) - 2
+        self.dfs = get_data_quick(pd.concat(h.get_dfs()))
+        self.last_game_idx = len(self.dfs) - 1
         self.action_space = spaces.Discrete(3)  # buy_a, buy_h, hold
         self.reset()
         self.observation_space = get_obs_size(self.data)
@@ -75,7 +85,7 @@ class SipsEnv(gym.Env):
 
         reward, done = self.act(obs, action)
         info = [obs.a_ml, obs.h_ml]
-        return obs, reward, done, info
+        return np.array(obs), reward, done, info
 
     def act(self, obs, act):
         """
@@ -83,7 +93,7 @@ class SipsEnv(gym.Env):
         act (int)
         """
         reward = 0.0
-        if obs.GAME_END or self.row_idx == self.last_row_idx:
+        if self.row_idx == self.last_row_idx:
             return self.tally_reward(obs), True
         if act == BUY_A:
             reward -= 1
@@ -97,7 +107,7 @@ class SipsEnv(gym.Env):
 
         num_bets = len(self.a_bets) + len(self.h_bets)
         if obs.a_pts == obs.h_pts:
-            print(f"{obs.game_id} tied")  # {obs.a_team} tied with {obs.h_team}")
+            print(f"tied game")  # {obs.a_team} tied with {obs.h_team}")
             reward = num_bets
             net = -1 * num_bets
         elif obs.a_pts < obs.h_pts:
@@ -116,10 +126,18 @@ class SipsEnv(gym.Env):
         self.game_idx += 1
         if self.game_idx == self.last_game_idx:
             self.close()
-        self.data = self.dfs[self.game_idx]
-        print(f"game_data shape: {self.data.shape}")
+            
+        try:
+            self.data = self.dfs[self.game_idx]
+        except IndexError:
+            self.close()
+
+        # print(f"game_data shape: {self.data.shape}")
         self.last_row_idx = self.data.shape[0] - 1
         self.row_idx = -1
+        g = self.data
+        return np.array(g.iloc[0])
+
 
     def render(self, mode="human"):
         pass
@@ -131,7 +149,7 @@ class SipsEnv(gym.Env):
 
 def get_obs_size(df):
     # state_size = (1, df.shape[0])
-    return spaces.Box(-np.inf, np.inf, [df.shape[0]])
+    return spaces.Box(-np.inf, np.inf, [df.shape[1]])
 
 
 if __name__ == "__main__":
