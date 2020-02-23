@@ -47,29 +47,10 @@ if __name__ == "__main__":
             j += 1
             if done:
                 break
-            # Note there's no env.render() here. But the environment still can open window and
-            # render if asked by env.monitor: it calls env.render('rgb_array') to record video.
-            # Video is not recorded every episode, see capped_cubic_video_schedule for details.
-
+            
         print(f"ep_r: {ep_r}")
         print(f"info: {i}")
         r_sum += ep_r
     # Close the env and write monitor result info to disk
     print(f"r_sum: {r_sum}")
     env.close()
-
-
-# if __name__ == "__main__":
-#     env = gym.make('Sips-v0')
-#     MAX_STEPS = 1000
-#     PRINT_FREQ = MAX_STEPS / 20
-#     for i in range(MAX_STEPS):
-#         o, r, d, info = env.step(random.randint(0, 2))
-#         # print(f'GAME_END: {o.GAME_END}')
-#         if i % PRINT_FREQ == 0:
-
-#         # print("action_spec:", env.action_spec())
-#         # print("time_step_spec.observation:", env.time_step_spec().observation)
-#         # print("time_step_spec.step_type:", env.time_step_spec().step_type)
-#         # print("time_step_spec.discount:", env.time_step_spec().discount)
-#         # print("time_step_spec.reward:", env.time_step_spec().reward)
