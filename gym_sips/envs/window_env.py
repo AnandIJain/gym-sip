@@ -8,15 +8,17 @@ reset on game end
 import random
 
 import gym
-import numpy as np
-import pandas as pd
 from gym import error, spaces, utils
 from gym.utils import seeding
 
-from sips.h import calc
-from sips.h import fileio as fio
+import pandas as pd
+import numpy as np
+
 from sips.h import helpers as h
 from sips.h import serialize as s
+from sips.h import fileio as fio
+from sips.h import calc
+
 from sips.macros import bov as bm
 from sips.macros import tfm
 
@@ -43,19 +45,43 @@ ENV_COLS = [
     "a_tot",
 ]
 
+# last_mod  num_markets  live  quarter   secs  a_pts  h_pts    a_ml     h_ml  a_tot
+
+
+def get_data_quick(df):
+    s = df[ENV_COLS]
+    x = s.replace({'None': np.nan, 'EVEN': 100})
+    x = x.dropna()
+    bb = x[x.sport == 'BASK'].copy()
+    gs = h.chunk(bb)
+    games = []
+    for g in gs:
+        g.last_mod = g.last_mod - g.last_mod.iloc[0]
+        g.drop(['game_id', 'sport'], axis=1, inplace=True)
+        g = g.astype(np.float32)
+        games.append(g)
+    return games
+
+
+def get_data():
+    dfs = h.get_dfs()
+    dfs = h.apply_min_then_filter(dfs, verbose=True)
+    df = pd.concat(dfs)
+    return df
+
 
 class SipsEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
     # todo fix last_n and windowing
 
-    def __init__(self, last_n = 1):
+    def __init__(self, last_n=5):
         self.last_n = last_n
         self.game_idx = -1  # gets incr to 0 on init
-        df = h.all_lines()
-        self.dfs = h.get_games_parsed(df, ENV_COLS)
+        df = get_data()
+        self.dfs = get_data_quick(df)
         self.last_game_idx = len(self.dfs) - 1
-        self.reset()
         self.action_space = spaces.Discrete(3)  # buy_a, buy_h, hold
+        self.reset()
         self.observation_space = get_obs_size(self.data, last_n=last_n)
 
     def step(self, action):
@@ -64,11 +90,14 @@ class SipsEnv(gym.Env):
         if self.row_idx > self.last_row_idx:
             return None, 0, True, None
 
-        obs = self.data.iloc[self.row_idx]
+        obs = self.data.iloc[self.row_idx-self.last_n:self.row_idx]
+        print(f'{obs}')
 
         reward, done = self.act(obs, action)
         info = [obs.a_ml, obs.h_ml]
-        return np.array(obs), reward, done, info
+        obs = np.array(obs).view(-1)
+        print(f'{obs}')
+        return obs, reward, done, info
 
     def act(self, obs, act):
         """
@@ -77,15 +106,32 @@ class SipsEnv(gym.Env):
         """
         reward = 0.0
         if self.row_idx == self.last_row_idx:
-            return tally_reward(obs, self.a_bets, self.h_bets), True
+            return self.tally_reward(obs), True
+
         if act == BUY_A:
             reward -= 1
-            self.a_bets.append(int(obs.a_ml))
+            self.a_bets.append(int(obs.a_ml[self.row_idx]))
         elif act == BUY_H:
             reward -= 1
-            self.h_bets.append(int(obs.h_ml))
+            self.h_bets.append(int(obs.h_ml[self.row_idx]))
         return reward, False
 
+    def tally_reward(self, obs):
+
+        num_bets = len(self.a_bets) + len(self.h_bets)
+        if obs.a_pts == obs.h_pts:
+            print(f"tied game")  # {obs.a_team} tied with {obs.h_team}")
+            reward = num_bets
+            net = -1 * num_bets
+        elif obs.a_pts < obs.h_pts:
+            reward = sum(list(map(calc.eq, self.a_bets)))
+            net = reward - num_bets
+        else:
+            reward = sum(list(map(calc.eq, self.h_bets)))
+            net = reward - num_bets
+
+        print(f"net: {net}")
+        return reward
 
     def reset(self):
         self.a_bets = []
@@ -100,11 +146,10 @@ class SipsEnv(gym.Env):
             self.close()
 
         # print(f"game_data shape: {self.data.shape}")
-        self.last_row_idx = self.data.shape[0] - 1
-        self.row_idx = -1
-        g = self.data
-        return np.array(g.iloc[0])
-
+        self.last_row_idx = self.data.shape[0]  # - ln
+        self.row_idx = self.last_n
+        obs = self.data.iloc[0:self.last_n].values
+        return obs
 
     def render(self, mode="human"):
         pass
@@ -112,32 +157,16 @@ class SipsEnv(gym.Env):
     def close(self):
         print("ran thru all games")
         self.game_idx = -1
+        self.reset()
+        return
 
-
-
-def tally_reward(obs, a_bets, h_bets):
-
-    num_bets = len(a_bets) + len(h_bets)
-    if obs.a_pts == obs.h_pts:
-        print(f"tied game")  # {obs.a_team} tied with {obs.h_team}")
-        reward = num_bets
-        net = -1 * num_bets
-    elif obs.a_pts < obs.h_pts:
-        reward = sum(list(map(calc.eq, a_bets)))
-        net = reward - num_bets
-    else:
-        reward = sum(list(map(calc.eq, h_bets)))
-        net = reward - num_bets
-
-    print(f"net: {net} reward: {reward}")
-    return reward
 
 def get_obs_size(df, last_n=1):
     # state_size = (1, df.shape[0])
-    return spaces.Box(-np.inf, np.inf, [df.shape[1] * last_n])
+    return spaces.Box(-np.inf, np.inf, [last_n, df.shape[1]])
 
 
 if __name__ == "__main__":
     env = SipsEnv()
-    print(env.dfs)
+    # print(env.dfs)
     print(len(env.dfs))

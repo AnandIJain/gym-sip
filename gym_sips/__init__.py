@@ -7,6 +7,12 @@ register(
     # max_episode_steps=200
 )
 
+register(
+    id="ContEnv-v0",
+    entry_point="gym_sips.envs:ContEnv"
+    # max_episode_steps=200
+)
+
 # register(
 #     id="Req-v0",
 #     entry_point="gym_sips.envs:ReqEnv"
